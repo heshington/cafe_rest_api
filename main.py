@@ -1,15 +1,15 @@
 from flask import Flask, jsonify, render_template, request
 from flask_sqlalchemy import SQLAlchemy
-
+from sqlalchemy import exc
 from random import randint
-
+import requests
 app = Flask(__name__)
 
 ##Connect to Database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cafes.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
+app_api_key = "TopSecretAPIKey"
 
 ##Cafe TABLE Configuration
 class Cafe(db.Model):
@@ -112,9 +112,33 @@ def add():
 
 
 ## HTTP PUT/PATCH - Update Record
-
+@app.route("/update-price/<cafe_id>", methods=["PATCH"])
+def update_price(cafe_id):
+    cafe_to_update = Cafe.query.get(cafe_id)
+    print(cafe_to_update)
+    new_coffee_price = request.args.get('price')
+    cafe_to_update.coffee_price = new_coffee_price
+    db.session.commit()
+    return jsonify(response={"Success": f"Successfully updated the price of coffee at {cafe_to_update.name}."})
 ## HTTP DELETE - Delete Record
+@app.route("/report-closed/<cafe_id>", methods=['DELETE'])
+def report_closed(cafe_id):
 
+    api_key = request.args.get('apiKey')
+
+    print(api_key)
+    if api_key == app_api_key:
+
+        cafe_to_delete = Cafe.query.get(cafe_id)
+        if cafe_to_delete != None:
+            db.session.delete(cafe_to_delete)
+            db.session.commit()
+            return jsonify(response={"Success": f"Cafe {cafe_to_delete.name} has been removed from the database."})
+        else:
+            return jsonify(response={"error": "Cafe does not exist"})
+
+    else:
+        return jsonify(response={"error": "That's not allowed. Make sure you have the correct api_key."})
 
 if __name__ == '__main__':
     app.run(debug=True)
